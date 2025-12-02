@@ -9,6 +9,7 @@ import {
   Check,
   LogOut,
   QrCode,
+  PencilIcon,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useApp } from '../context/AppContext';
@@ -82,7 +83,7 @@ const ProfilePage = () => {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-28">
-      <div className="bg-white px-6 pt-12 pb-8 border-b border-slate-100">
+      <div className="bg-white px-6 pt-8 pb-8 border-b border-slate-100">
         <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <Settings className="w-5 h-5 text-slate-400" /> Settings
         </h2>
@@ -108,8 +109,8 @@ const ProfilePage = () => {
                 </span>
               )}
             </div>
-            <label className="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow-md cursor-pointer">
-              <QrCode className="w-3 h-3 text-slate-600" />
+            <label className="absolute -bottom-3 bg-transparent -right-1 rounded-full p-1 shadow-md cursor-pointer">
+              <PencilIcon className="w-3 h-3 text-slate-600" />
               <input
                 type="file"
                 accept="image/*"

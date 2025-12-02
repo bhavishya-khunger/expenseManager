@@ -26,27 +26,27 @@ export const AppProvider = ({ children }) => {
       else setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session) {
-          fetchUserData(session.user.id);
-        } else {
-          setUser(null);
-          setTransactions([]);
-          setFriends([]);
-          setFriendRequests([]);
-          setPersonalExpenses([]);
-          setSettlementRequests([]);
-          setReminders([]);
-          setLoading(false);
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        fetchUserData(session.user.id);
+      } else {
+        setUser(null);
+        setTransactions([]);
+        setFriends([]);
+        setFriendRequests([]);
+        setPersonalExpenses([]);
+        setSettlementRequests([]);
+        setReminders([]);
+        setLoading(false);
       }
-    );
+    });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserData = async (userId) => {
+  const fetchUserData = async userId => {
     try {
       setLoading(true);
 
@@ -71,7 +71,7 @@ export const AppProvider = ({ children }) => {
 
       const formattedFriends = (friendsData || []).map(f => ({
         user_id: f.profile.id,
-        ...f.profile
+        ...f.profile,
       }));
       setFriends(formattedFriends);
 
@@ -132,19 +132,59 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // --- EMAIL VERIFICATION HELPERS ---
+
+  const resendVerificationEmail = async email => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        console.error('Resend verification error:', error);
+        toast.error('Could not resend verification email.');
+        throw error;
+      }
+
+      toast.success('Verification email sent again. Check your inbox.');
+    } catch (err) {
+      // already logged + toasted above
+      throw err;
+    }
+  };
+
   // --- AUTH ACTIONS ---
 
   const login = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+
     if (error) {
       console.error(error);
-      if (error.message.includes('Invalid login')) {
+
+      // Handle unverified email case nicely
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        toast.error('Please verify your email before logging in.');
+        // Optional: auto-resend verification mail
+        try {
+          await resendVerificationEmail(email);
+        } catch {
+          // ignore, toast already shown in resend
+        }
+        return;
+      }
+
+      if (error.message.toLowerCase().includes('invalid login')) {
         toast.error('Incorrect email or password.');
       } else {
         toast.error(error.message);
       }
       throw error;
     }
+
     toast.success('Welcome back!');
   };
 
@@ -163,13 +203,14 @@ export const AppProvider = ({ children }) => {
       password,
       options: {
         data: { full_name: fullName },
+        // This is where Supabase will send the user after clicking the email link
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
     if (error) {
       console.error('Signup error:', error);
-      if (error.message.includes('already registered')) {
+      if (error.message.toLowerCase().includes('already registered')) {
         toast.error('Email already registered. Try logging in.');
       } else {
         toast.error(error.message || 'Sign up failed.');
@@ -177,10 +218,13 @@ export const AppProvider = ({ children }) => {
       throw error;
     }
 
+    // Supabase will send a verification email if email confirmations are enabled
+    toast.success('Account created! Please check your email to verify your account before logging in.');
+
+    // Optional: you can keep this if you want to distinguish cases
     if (!data.user) {
-      toast.info('Check your email to confirm the account.');
-    } else {
-      toast.success('Account created! Verify your email and then log in.');
+      // user not auto-signed in, waiting for verification
+      toast.info('Verification link sent. Complete verification to continue.');
     }
   };
 
@@ -189,9 +233,24 @@ export const AppProvider = ({ children }) => {
     toast.info('Signed out.');
   };
 
+  const loginWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin, // or a specific callback URL
+      },
+    });
+
+    if (error) {
+      console.error('Google sign-in error:', error.message);
+      toast.error('Google sign-in failed.');
+      throw error;
+    }
+  };
+
   // --- EXPENSES & TRANSACTIONS ---
 
-  const addTransaction = async (data) => {
+  const addTransaction = async data => {
     const tempId = crypto.randomUUID();
     const newTx = { ...data, id: tempId, created_at: new Date().toISOString() };
     setTransactions(prev => [newTx, ...prev]);
@@ -205,7 +264,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const addPersonalExpense = async (data) => {
+  const addPersonalExpense = async data => {
     const tempId = crypto.randomUUID();
     const newExp = {
       ...data,
@@ -228,9 +287,12 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const deletePersonalExpense = async (id) => {
+  const deletePersonalExpense = async id => {
     setPersonalExpenses(prev => prev.filter(e => e.id !== id));
-    const { error } = await supabase.from('personal_expenses').delete().eq('id', id);
+    const { error } = await supabase
+      .from('personal_expenses')
+      .delete()
+      .eq('id', id);
     if (error) {
       console.error(error);
       toast.error('Could not delete expense.');
@@ -241,7 +303,7 @@ export const AppProvider = ({ children }) => {
 
   // --- FRIENDS ---
 
-  const sendFriendRequest = async (email) => {
+  const sendFriendRequest = async email => {
     if (!email.includes('@')) {
       toast.error('Invalid email address.');
       return;
@@ -309,7 +371,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const updateProfile = async (updates) => {
+  const updateProfile = async updates => {
     setUser(prev => ({ ...prev, ...updates }));
     const { error } = await supabase
       .from('profiles')
@@ -384,7 +446,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const markReminderDone = async (id) => {
+  const markReminderDone = async id => {
     const { error } = await supabase
       .from('reminders')
       .update({
@@ -422,6 +484,7 @@ export const AppProvider = ({ children }) => {
         allUsers,
         // actions
         login,
+        loginWithGoogle,
         signup,
         logout,
         addTransaction,
@@ -434,6 +497,7 @@ export const AppProvider = ({ children }) => {
         respondSettlement,
         createReminder,
         markReminderDone,
+        resendVerificationEmail, // ⬅️ expose so UI can add "Resend verification email" button
       }}
     >
       {children}

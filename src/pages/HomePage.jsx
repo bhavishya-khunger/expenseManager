@@ -132,7 +132,7 @@ const HomePage = ({ setPage }) => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-5 rounded-3xl shadow-lg shadow-indigo-900/20 relative overflow-hidden group">
+                        <div className="gradient-to-br from-indigo-600 to-indigo-800 p-5 rounded-3xl shadow-lg shadow-indigo-900/20 relative overflow-hidden group">
                             <div className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">
                                 Total Spent
                             </div>
