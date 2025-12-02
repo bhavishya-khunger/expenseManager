@@ -1,0 +1,1051 @@
+import React, { useState, useEffect, useContext, createContext, useMemo, useRef } from 'react';
+import { 
+  Home, Users, PlusCircle, MessageCircle, TrendingUp, Settings, 
+  Wallet, Loader, ShieldCheck, DollarSign, Check, ChevronLeft, 
+  QrCode, X, Plus, Bell, Trash2, Calendar, BarChart3, LogOut,
+  ArrowRightLeft, PieChart, CreditCard, User, Receipt,
+  Utensils, Bus, Film, ShoppingBag, Zap, HeartPulse, MoreHorizontal,
+  Split, Calculator, Send
+} from 'lucide-react';
+
+// --- Global Context ---
+const AppContext = createContext();
+export const useApp = () => useContext(AppContext);
+
+// --- App Provider ---
+const AppProvider = ({ children }) => {
+  // --- 1. STATE INITIALIZATION ---
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('ec_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [transactions, setTransactions] = useState(() => {
+    const saved = localStorage.getItem('ec_transactions');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [friends, setFriends] = useState(() => {
+    const saved = localStorage.getItem('ec_friends');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [personalExpenses, setPersonalExpenses] = useState(() => {
+    const saved = localStorage.getItem('ec_personal_expenses');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [loading, setLoading] = useState(false);
+
+  // --- 2. PERSISTENCE EFFECTS ---
+  useEffect(() => {
+    if (user) localStorage.setItem('ec_user', JSON.stringify(user));
+    else localStorage.removeItem('ec_user');
+  }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem('ec_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem('ec_friends', JSON.stringify(friends));
+  }, [friends]);
+
+  useEffect(() => {
+    localStorage.setItem('ec_personal_expenses', JSON.stringify(personalExpenses));
+  }, [personalExpenses]);
+
+  // --- 3. ACTIONS ---
+  const login = async (email) => {
+    setLoading(true);
+    setTimeout(() => {
+      const mockUser = { 
+        id: 'user_' + email.split('@')[0], 
+        email, 
+        full_name: email.split('@')[0],
+        created_at: new Date().toISOString() 
+      };
+      setUser(mockUser);
+      setLoading(false);
+    }, 800);
+  };
+
+  const logout = () => setUser(null);
+
+  const addTransaction = (data) => {
+    const newTx = { 
+      id: crypto.randomUUID(), 
+      created_at: new Date().toISOString(), 
+      read_by: [user.id], 
+      ...data 
+    };
+    setTransactions(prev => [newTx, ...prev]);
+  };
+
+  const addPersonalExpense = (data) => {
+    const newExp = { 
+      id: crypto.randomUUID(), 
+      created_at: new Date().toISOString(), 
+      user_id: user.id,
+      ...data 
+    };
+    setPersonalExpenses(prev => [newExp, ...prev]);
+  };
+
+  const deletePersonalExpense = (id) => {
+    setPersonalExpenses(prev => prev.filter(e => e.id !== id));
+  };
+
+  const addFriend = (email) => {
+    const name = email.split('@')[0];
+    const newFriend = {
+      id: crypto.randomUUID(),
+      user_id: 'friend_' + name, 
+      email,
+      full_name: name.charAt(0).toUpperCase() + name.slice(1),
+      is_verified: Math.random() > 0.5,
+      upi_id: `${name}@upi`,
+      added_by: user.id
+    };
+    setFriends(prev => [...prev, newFriend]);
+  };
+
+  const updateProfile = (updates) => {
+    setUser(prev => ({ ...prev, ...updates }));
+  };
+
+  const markAsRead = (friendId) => {};
+
+  // --- 4. DERIVED DATA ---
+  const allUsers = useMemo(() => {
+    if (!user) return [];
+    const me = { 
+        id: user.id, 
+        user_id: user.id,
+        full_name: 'Me', 
+        email: user.email,
+        is_verified: true
+    };
+    return [me, ...friends];
+  }, [user, friends]);
+
+  return (
+    <AppContext.Provider value={{
+      user,
+      loading,
+      transactions,
+      friends,
+      personalExpenses,
+      allUsers,
+      login, logout, addTransaction, addPersonalExpense, deletePersonalExpense, addFriend, updateProfile, markAsRead
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+// --- COMPONENTS ---
+
+const Login = () => {
+  const { login, loading } = useApp();
+  const [email, setEmail] = useState('');
+  
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white">
+      <div className="w-20 h-20 bg-indigo-500 rounded-3xl flex items-center justify-center mb-6 shadow-2xl shadow-indigo-500/20 rotate-3">
+        <Wallet className="w-10 h-10 text-white" />
+      </div>
+      <h1 className="text-4xl font-black mb-2 tracking-tight">ExpenseCentral</h1>
+      <p className="text-slate-400 mb-10 text-center max-w-xs">Track daily spending and split bills with friends in one place.</p>
+      
+      <div className="w-full max-w-sm bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 shadow-2xl">
+        <h2 className="text-xl font-bold mb-6 text-indigo-400">Sign In</h2>
+        <form onSubmit={(e) => { e.preventDefault(); if(email) login(email); }} className="space-y-5">
+          <div>
+             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 mb-2 block">Email Address</label>
+             <input 
+              type="email" placeholder="you@example.com" 
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+              value={email} onChange={e => setEmail(e.target.value)}
+            />
+          </div>
+          <button disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition-all flex justify-center">
+            {loading ? <Loader className="animate-spin" /> : 'Get Started'}
+          </button>
+        </form>
+        <p className="text-xs text-center text-slate-500 mt-6">
+          * Local Storage Mode *<br/>Data saved on this device only.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const BottomNav = ({ currentPage, setPage }) => {
+  const navItems = [
+    { id: 'home', icon: Home, label: 'Home' },
+    { id: 'activity', icon: MessageCircle, label: 'Chat' },
+    { id: 'add', icon: PlusCircle, label: 'Add', isMain: true },
+    { id: 'stats', icon: PieChart, label: 'Stats' },
+    { id: 'profile', icon: User, label: 'Profile' },
+  ];
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-6 py-2 pb-safe flex justify-between items-end z-50 max-w-md mx-auto">
+      {navItems.map(item => (
+        <button 
+          key={item.id}
+          onClick={() => setPage(item.id)}
+          className={`flex flex-col items-center gap-1 transition-all duration-300 relative ${
+            item.isMain ? '-top-6' : 'py-3'
+          }`}
+        >
+          {item.isMain ? (
+            <div className={`p-4 rounded-full shadow-xl shadow-indigo-200 transition-transform ${currentPage === 'add' ? 'bg-indigo-600 scale-110' : 'bg-slate-900 hover:scale-105'}`}>
+              <Plus className="w-6 h-6 text-white" strokeWidth={3} />
+            </div>
+          ) : (
+            <>
+              <item.icon className={`w-6 h-6 ${currentPage === item.id ? 'text-indigo-600 fill-indigo-50' : 'text-slate-300'}`} strokeWidth={currentPage === item.id ? 2.5 : 2} />
+              {currentPage === item.id && <span className="absolute -bottom-1 w-1 h-1 bg-indigo-600 rounded-full"></span>}
+            </>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+const HomePage = () => {
+  const { user, friends, transactions, personalExpenses } = useApp();
+
+  const balances = useMemo(() => {
+    let bal = {};
+    const myId = user.id;
+    transactions.forEach(t => {
+      const isPayer = t.payer_id === myId;
+      const amInvolved = t.involved?.includes(myId);
+      
+      if (t.splits) {
+         if (isPayer) {
+            Object.entries(t.splits).forEach(([uid, amount]) => {
+                if (uid !== myId) bal[uid] = (bal[uid] || 0) + amount;
+            });
+         } else if (amInvolved) {
+             const myShare = t.splits[myId] || 0;
+             if (myShare > 0) {
+                 bal[t.payer_id] = (bal[t.payer_id] || 0) - myShare;
+             }
+         }
+      } else {
+        const split = t.amount / (t.involved?.length || 1);
+        if (isPayer) {
+            t.involved?.forEach(uid => {
+                if (uid !== myId) bal[uid] = (bal[uid] || 0) + split;
+            });
+        } else if (amInvolved) {
+            bal[t.payer_id] = (bal[t.payer_id] || 0) - split;
+        }
+      }
+    });
+    return bal;
+  }, [transactions, user]);
+
+  const netBalance = Object.values(balances).reduce((a, b) => a + b, 0);
+
+  const monthlySpending = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const personalSum = personalExpenses
+      .filter(e => new Date(e.created_at) >= startOfMonth)
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const splitSum = transactions
+      .filter(t => new Date(t.created_at) >= startOfMonth && t.involved?.includes(user.id))
+      .reduce((sum, t) => {
+        let myShare = 0;
+        if (t.splits) {
+            myShare = t.splits[user.id] || 0;
+        } else {
+            myShare = t.amount / (t.involved?.length || 1);
+        }
+        return sum + myShare;
+      }, 0);
+
+    return personalSum + splitSum;
+  }, [personalExpenses, transactions, user]);
+
+  return (
+    <div className="pb-28 space-y-6">
+      <div className="bg-slate-900 text-white pt-10 pb-8 px-6 rounded-b-[2.5rem] shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4"></div>
+        
+        <div className="relative z-10">
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center font-bold text-sm shadow-lg shadow-indigo-500/20 border border-white/10">
+                {user.full_name.substring(0,2).toUpperCase()}
+              </div>
+              <div>
+                <h1 className="font-bold text-lg leading-tight">Overview</h1>
+                <p className="text-xs text-slate-400">Welcome back, {user.full_name.split(' ')[0]}</p>
+              </div>
+            </div>
+            <button className="bg-white/10 p-2 rounded-full hover:bg-white/20 transition-colors backdrop-blur-md">
+              <Bell className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-5 rounded-3xl shadow-lg shadow-indigo-900/20 relative overflow-hidden group">
+               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <TrendingUp className="w-12 h-12" />
+               </div>
+               <div className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">Total Spent</div>
+               <div className="text-2xl font-black mb-1">₹{monthlySpending.toLocaleString(undefined, {maximumFractionDigits:0})}</div>
+               <div className="text-[10px] text-indigo-300 bg-indigo-900/30 inline-block px-2 py-0.5 rounded-full">This Month</div>
+            </div>
+
+            <div className={`p-5 rounded-3xl shadow-lg relative overflow-hidden group border ${netBalance >= 0 ? 'bg-emerald-900/40 border-emerald-500/20' : 'bg-rose-900/40 border-rose-500/20'}`}>
+               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Users className="w-12 h-12" />
+               </div>
+               <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${netBalance >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>Net Balance</div>
+               <div className={`text-2xl font-black mb-1 ${netBalance >= 0 ? 'text-emerald-100' : 'text-rose-100'}`}>
+                 {netBalance < 0 ? '-' : ''}₹{Math.abs(netBalance).toLocaleString(undefined, {maximumFractionDigits:0})}
+               </div>
+               <div className={`text-[10px] inline-block px-2 py-0.5 rounded-full ${netBalance >= 0 ? 'text-emerald-300 bg-emerald-900/30' : 'text-rose-300 bg-rose-900/30'}`}>
+                 {netBalance >= 0 ? 'To Receive' : 'To Pay'}
+               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-slate-800 font-bold text-lg">Active Balances</h2>
+        </div>
+        
+        <div className="space-y-3">
+          {friends.map((f, i) => {
+             const bal = balances[f.user_id] || 0;
+             if (Math.abs(bal) < 1) return null;
+             return (
+               <div key={f.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                 <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-md ${bal > 0 ? 'bg-emerald-500 shadow-emerald-200' : 'bg-rose-500 shadow-rose-200'}`}>
+                      {f.full_name.substring(0,2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-800">{f.full_name}</div>
+                      <div className={`text-xs font-medium ${bal > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {bal > 0 ? 'owes you' : 'you owe'}
+                      </div>
+                    </div>
+                 </div>
+                 <div className={`font-black text-lg ${bal > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                   ₹{Math.abs(bal).toLocaleString()}
+                 </div>
+               </div>
+             )
+          })}
+          {Object.keys(balances).every(k => Math.abs(balances[k]) < 1) && (
+            <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-200">
+              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                 <Check className="w-6 h-6 text-slate-300" />
+              </div>
+              <p className="text-slate-400 font-medium text-sm">Everything is settled up!</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AddPage = ({ setPage, initialFriendId }) => {
+  const { user, allUsers, addTransaction, addPersonalExpense } = useApp();
+  const [mode, setMode] = useState('personal'); 
+  const [loading, setLoading] = useState(false);
+
+  const [amount, setAmount] = useState('');
+  const [desc, setDesc] = useState('');
+  const [category, setCategory] = useState('Food');
+  const [payer, setPayer] = useState(user.id);
+  
+  const [splitType, setSplitType] = useState('equal'); 
+  const [involved, setInvolved] = useState(initialFriendId ? [user.id, initialFriendId] : [user.id]);
+  const [unequalAmounts, setUnequalAmounts] = useState({});
+  const [roundOff, setRoundOff] = useState(true);
+
+  const categories = [
+    { id: 'Food', icon: Utensils, color: 'text-orange-600 bg-orange-100', keywords: ['pizza', 'burger', 'lunch', 'dinner', 'food', 'coffee', 'cafe', 'drink', 'swiggy', 'zomato'] },
+    { id: 'Transport', icon: Bus, color: 'text-blue-600 bg-blue-100', keywords: ['uber', 'ola', 'taxi', 'cab', 'bus', 'train', 'flight', 'fuel', 'petrol'] },
+    { id: 'Entertainment', icon: Film, color: 'text-purple-600 bg-purple-100', keywords: ['movie', 'cinema', 'netflix', 'game', 'show', 'party', 'concert'] },
+    { id: 'Shopping', icon: ShoppingBag, color: 'text-pink-600 bg-pink-100', keywords: ['clothes', 'amazon', 'flipkart', 'mall', 'store', 'shoes'] },
+    { id: 'Bills', icon: Zap, color: 'text-yellow-600 bg-yellow-100', keywords: ['bill', 'electricity', 'wifi', 'recharge', 'phone'] },
+    { id: 'Health', icon: HeartPulse, color: 'text-rose-600 bg-rose-100', keywords: ['doctor', 'med', 'pharmacy', 'gym'] },
+    { id: 'Other', icon: MoreHorizontal, color: 'text-gray-600 bg-gray-100', keywords: [] },
+  ];
+
+  const activeCategory = categories.find(c => c.id === category) || categories[0];
+  const ActiveIcon = activeCategory.icon;
+
+  useEffect(() => {
+    if (!desc) return;
+    const lowerDesc = desc.toLowerCase();
+    for (const cat of categories) {
+      if (cat.keywords.some(k => lowerDesc.includes(k))) {
+        setCategory(cat.id);
+        break;
+      }
+    }
+  }, [desc]);
+
+  const toggleInvolved = (uid) => {
+    setInvolved(prev => 
+      prev.includes(uid) 
+        ? (prev.length > 1 ? prev.filter(id => id !== uid) : prev) 
+        : [...prev, uid]
+    );
+  };
+
+  const handleUnequalChange = (uid, val) => {
+      setUnequalAmounts(prev => ({...prev, [uid]: parseFloat(val) || 0}));
+  };
+
+  const calculateSplits = () => {
+    const total = parseFloat(amount);
+    let finalSplits = {};
+    
+    if (splitType === 'equal') {
+        const count = involved.length;
+        const share = total / count;
+        involved.forEach(uid => {
+            finalSplits[uid] = roundOff ? Math.round(share) : parseFloat(share.toFixed(2));
+        });
+        
+        if (roundOff) {
+            const sum = Object.values(finalSplits).reduce((a,b) => a+b, 0);
+            const diff = total - sum;
+            if (diff !== 0) {
+                 finalSplits[involved[0]] += diff; 
+            }
+        }
+    } else {
+        finalSplits = { ...unequalAmounts };
+    }
+    return finalSplits;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!amount || !desc) return;
+    
+    if (mode === 'split' && splitType === 'unequal') {
+        const sum = involved.reduce((acc, uid) => acc + (unequalAmounts[uid] || 0), 0);
+        if (Math.abs(sum - parseFloat(amount)) > 1) {
+            alert(`Total split amount (${sum}) does not match expense amount (${amount})`);
+            return;
+        }
+    }
+
+    setLoading(true);
+    const val = parseFloat(amount);
+    await new Promise(r => setTimeout(r, 600)); 
+    
+    if (mode === 'personal') {
+      addPersonalExpense({ amount: val, description: desc, category });
+      setPage('stats'); 
+    } else {
+      const splits = calculateSplits();
+      addTransaction({
+        amount: val,
+        description: desc,
+        payer_id: payer,
+        involved,
+        splits,
+        category, // Save category for splits too
+        type: 'split'
+      });
+      setPage('activity'); 
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-24">
+      <div className={`px-6 pt-12 pb-8 shadow-sm transition-colors duration-500 ${mode === 'personal' ? 'bg-white' : 'bg-slate-900 text-white'}`}>
+        <h2 className="text-2xl font-bold text-center mb-6">New Expense</h2>
+        <div className={`p-1 rounded-2xl flex relative ${mode === 'personal' ? 'bg-slate-100' : 'bg-slate-800'}`}>
+          <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl shadow-sm transition-all duration-300 ease-spring ${mode === 'personal' ? 'bg-white left-1' : 'bg-indigo-500 left-[calc(50%+4px)]'}`}></div>
+          <button onClick={() => setMode('personal')} className={`flex-1 relative z-10 py-3 text-sm font-bold transition-colors ${mode === 'personal' ? 'text-slate-900' : 'text-slate-400'}`}>Personal</button>
+          <button onClick={() => setMode('split')} className={`flex-1 relative z-10 py-3 text-sm font-bold transition-colors ${mode === 'split' ? 'text-white' : 'text-slate-500'}`}>Split Bill</button>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="px-6 py-8 space-y-8">
+        <div className="relative text-center">
+          <span className="text-slate-400 text-4xl font-bold absolute top-1/2 -translate-y-1/2 left-4">₹</span>
+          <input 
+            type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0"
+            className="w-full bg-transparent border-b-2 border-slate-200 py-4 pl-12 pr-4 text-6xl font-black text-slate-800 focus:border-indigo-500 focus:outline-none transition-colors text-center placeholder:text-slate-200"
+            autoFocus
+          />
+        </div>
+
+        <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3 transition-all">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${activeCategory.color}`}>
+            <ActiveIcon className="w-6 h-6 animate-in zoom-in spin-in-12 duration-300" key={activeCategory.id} />
+          </div>
+          <input 
+            type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="What is this for?"
+            className="w-full h-full text-lg font-medium text-slate-700 placeholder:text-slate-300 outline-none bg-transparent"
+          />
+        </div>
+
+        {/* Category Selection (Universal) */}
+        <div className="space-y-4 animate-in slide-in-from-bottom-2 fade-in">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Category</label>
+            <div className="grid grid-cols-3 gap-3">
+              {categories.map(cat => (
+                <button 
+                  key={cat.id} type="button" onClick={() => setCategory(cat.id)}
+                  className={`py-3 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-2 ${
+                    category === cat.id 
+                      ? 'bg-slate-800 text-white border-slate-800 shadow-lg transform scale-105' 
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <cat.icon className="w-5 h-5" />
+                  {cat.id}
+                </button>
+              ))}
+            </div>
+        </div>
+
+        {mode === 'split' && (
+          <div className="space-y-8 animate-in slide-in-from-bottom-2 fade-in">
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-3 block">Who Paid?</label>
+              <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+                {allUsers.map(u => (
+                  <button 
+                    key={u.user_id} type="button" onClick={() => setPayer(u.user_id)}
+                    className={`flex items-center gap-2 pl-2 pr-4 py-2 rounded-full border transition-all whitespace-nowrap ${
+                      payer === u.user_id ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-slate-600 border-slate-200'
+                    }`}
+                  >
+                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${payer === u.user_id ? 'bg-white text-indigo-600' : 'bg-slate-200 text-slate-600'}`}>
+                        {u.full_name.charAt(0)}
+                     </div>
+                     <span className="text-sm font-bold">{u.user_id === user.id ? 'You' : u.full_name.split(' ')[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex bg-slate-100 p-1 rounded-xl">
+               <button type="button" onClick={() => setSplitType('equal')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${splitType === 'equal' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Equal Split</button>
+               <button type="button" onClick={() => setSplitType('unequal')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${splitType === 'unequal' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Unequal Split</button>
+            </div>
+
+            <div>
+               <div className="flex justify-between items-center mb-3">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Split With</label>
+                  {splitType === 'equal' && (
+                      <button type="button" onClick={() => setRoundOff(!roundOff)} className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md flex items-center gap-1">
+                          {roundOff ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} Round Off
+                      </button>
+                  )}
+               </div>
+
+               <div className="grid grid-cols-1 gap-3">
+                 {allUsers.map(u => (
+                   <div key={u.user_id} className={`flex items-center p-3 rounded-2xl border transition-all ${involved.includes(u.user_id) ? 'bg-white border-indigo-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                       <button type="button" onClick={() => toggleInvolved(u.user_id)} className="flex items-center flex-1">
+                           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mr-3 ${involved.includes(u.user_id) ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                             {u.full_name.substring(0,2).toUpperCase()}
+                           </div>
+                           <div className="text-left">
+                             <div className={`text-sm font-bold ${involved.includes(u.user_id) ? 'text-slate-900' : 'text-slate-500'}`}>
+                               {u.user_id === user.id ? 'You' : u.full_name}
+                             </div>
+                           </div>
+                       </button>
+                       {involved.includes(u.user_id) && (
+                           <div className="w-24">
+                              {splitType === 'equal' ? (
+                                  <div className="text-right text-sm font-bold text-slate-700">
+                                     ₹{amount ? (roundOff ? Math.round(amount/involved.length) : (amount/involved.length).toFixed(2)) : '0'}
+                                  </div>
+                              ) : (
+                                  <div className="relative">
+                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₹</span>
+                                     <input 
+                                       type="number" value={unequalAmounts[u.user_id] || ''} 
+                                       onChange={(e) => handleUnequalChange(u.user_id, e.target.value)}
+                                       className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pl-5 pr-2 text-right text-sm font-bold outline-none focus:border-indigo-500"
+                                       placeholder="0"
+                                     />
+                                  </div>
+                              )}
+                           </div>
+                       )}
+                   </div>
+                 ))}
+               </div>
+            </div>
+          </div>
+        )}
+
+        <button 
+          type="submit" disabled={loading || !amount || !desc}
+          className={`w-full py-4 rounded-2xl font-bold text-lg shadow-xl active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3 ${
+            mode === 'personal' ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white shadow-indigo-200'
+          }`}
+        >
+          {loading && <Loader className="w-5 h-5 animate-spin" />}
+          {mode === 'personal' ? 'Track Expense' : 'Split Bill'}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+const Stats = () => {
+  const { user, personalExpenses, transactions } = useApp();
+  const [range, setRange] = useState('monthly');
+
+  const isInRange = (dateStr) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const start = new Date();
+    if (range === 'daily') start.setHours(0,0,0,0);
+    if (range === 'weekly') start.setDate(now.getDate() - 7);
+    if (range === 'monthly') start.setDate(1);
+    return d >= start;
+  };
+
+  const statsData = useMemo(() => {
+    const combined = [];
+    
+    // 1. Personal
+    personalExpenses.forEach(e => {
+        if (isInRange(e.created_at)) combined.push({ ...e, source: 'personal' });
+    });
+
+    // 2. Shares from Splits (Now uses category!)
+    transactions.forEach(t => {
+        if (isInRange(t.created_at) && t.involved?.includes(user.id)) {
+             let myShare = 0;
+             if (t.splits) {
+                 myShare = t.splits[user.id] || 0;
+             } else {
+                 myShare = t.amount / (t.involved.length || 1);
+             }
+             
+             if (myShare > 0) {
+                 combined.push({
+                     id: t.id + '_share',
+                     description: t.description + ' (Share)',
+                     amount: myShare,
+                     category: t.category || 'Other', // Use actual category
+                     created_at: t.created_at,
+                     source: 'split'
+                 });
+             }
+        }
+    });
+
+    const total = combined.reduce((s, e) => s + e.amount, 0);
+    const map = {};
+    combined.forEach(e => map[e.category] = (map[e.category] || 0) + e.amount);
+    
+    let currentAngle = 0;
+    const pieData = Object.entries(map).map(([cat, amt], i) => {
+        const percentage = amt / total;
+        const angle = percentage * 360;
+        const start = currentAngle;
+        currentAngle += angle;
+        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#64748b'];
+        return { cat, amt, start, angle, color: colors[i % colors.length] };
+    });
+
+    return { total, byCat: Object.entries(map).sort((a,b) => b[1] - a[1]), pieData };
+  }, [personalExpenses, transactions, range, user]);
+
+  return (
+    <div className="bg-slate-50 min-h-screen pb-28">
+      <div className="bg-white px-6 pt-12 pb-6 border-b border-slate-100 sticky top-0 z-10">
+         <div className="flex justify-between items-center mb-6">
+           <h2 className="text-2xl font-bold text-slate-900">Analytics</h2>
+           <div className="flex bg-slate-100 p-1 rounded-lg">
+             {['daily','weekly','monthly'].map(r => (
+               <button key={r} onClick={() => setRange(r)} className={`px-3 py-1.5 text-xs font-bold capitalize rounded-md transition-all ${range === r ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>
+                 {r}
+               </button>
+             ))}
+           </div>
+         </div>
+         <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl shadow-slate-200 text-center">
+            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">Total Spent</div>
+            <div className="text-4xl font-black">₹{statsData.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+         </div>
+      </div>
+
+      <div className="p-6 space-y-8">
+        {statsData.total > 0 ? (
+          <div className="flex items-center justify-center py-4">
+             <svg viewBox="0 0 100 100" className="w-48 h-48 -rotate-90">
+                {statsData.pieData.map((d, i) => {
+                   const x1 = 50 + 50 * Math.cos(Math.PI * d.start / 180);
+                   const y1 = 50 + 50 * Math.sin(Math.PI * d.start / 180);
+                   const endAngle = d.start + d.angle;
+                   const x2 = 50 + 50 * Math.cos(Math.PI * endAngle / 180);
+                   const y2 = 50 + 50 * Math.sin(Math.PI * endAngle / 180);
+                   const largeArc = d.angle > 180 ? 1 : 0;
+                   return (
+                     <path 
+                       key={i} d={`M50,50 L${x1},${y1} A50,50 0 ${largeArc},1 ${x2},${y2} Z`} 
+                       fill={d.color} stroke="white" strokeWidth="2"
+                     />
+                   );
+                })}
+                <circle cx="50" cy="50" r="30" fill="white" />
+             </svg>
+          </div>
+        ) : (
+          <div className="h-48 flex items-center justify-center text-slate-300 italic">No spending data</div>
+        )}
+
+        <div className="space-y-4">
+            {statsData.byCat.map(([cat, amt]) => (
+            <div key={cat} className="group">
+                <div className="flex justify-between text-sm font-bold mb-2">
+                <span className="text-slate-600 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full" style={{backgroundColor: statsData.pieData.find(d=>d.cat===cat)?.color}}></span>
+                    {cat}
+                </span>
+                <span className="text-slate-900">₹{amt.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                </div>
+                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-500" style={{width: `${(amt/statsData.total)*100}%`, backgroundColor: statsData.pieData.find(d=>d.cat===cat)?.color}}></div>
+                </div>
+            </div>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Activity = ({ setPage, setInitialFriendId }) => {
+  const { friends, transactions, user, addFriend } = useApp();
+  const [activeChat, setActiveChat] = useState(null);
+  const [email, setEmail] = useState('');
+  
+  const friendBalances = useMemo(() => {
+     let bal = {};
+     transactions.forEach(t => {
+       let myShare = 0;
+       if (t.splits) {
+           myShare = t.splits[user.id] || 0;
+       } else {
+           myShare = t.amount / (t.involved?.length || 1);
+       }
+
+       if (t.payer_id === user.id) {
+            if (t.splits) {
+                Object.keys(t.splits).forEach(uid => {
+                    if (uid !== user.id) bal[uid] = (bal[uid] || 0) + t.splits[uid];
+                });
+            } else {
+                t.involved?.forEach(u => {if(u!==user.id) bal[u]=(bal[u]||0)+myShare});
+            }
+       } else if (t.involved?.includes(user.id)) {
+           bal[t.payer_id] = (bal[t.payer_id] || 0) - myShare;
+       }
+     });
+
+     return friends.map(f => {
+        const hasRecent = transactions.some(t => 
+            t.payer_id === f.user_id && 
+            t.involved.includes(user.id) && 
+            new Date(t.created_at).getDate() === new Date().getDate()
+        );
+        return {...f, balance: bal[f.user_id] || 0, hasNotification: hasRecent};
+     });
+  }, [friends, transactions, user]);
+
+  if (activeChat) {
+    return (
+      <ChatThread 
+        friend={activeChat} onBack={() => setActiveChat(null)} user={user} 
+        transactions={transactions} onAdd={() => { setInitialFriendId(activeChat.user_id); setPage('add'); }} 
+        allUsers={[user, ...friends]}
+      />
+    );
+  }
+
+  return (
+    <div className="bg-slate-50 min-h-screen pb-28">
+      <div className="px-6 pt-12 pb-6">
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">Chat & Friends</h2>
+        <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex gap-2 mb-6">
+          <input 
+             type="email" placeholder="Add friend by email..." className="flex-1 bg-transparent px-3 outline-none text-sm text-slate-700"
+             value={email} onChange={e => setEmail(e.target.value)}
+          />
+          <button onClick={() => { if(email) { addFriend(email); setEmail(''); } }} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800">Add</button>
+        </div>
+        <div className="space-y-3">
+           {friendBalances.length === 0 && <div className="text-center py-10 text-slate-400 text-sm">No friends yet. Add one above!</div>}
+           {friendBalances.map(f => (
+             <button key={f.id} onClick={() => setActiveChat(f)} className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:border-indigo-200 transition-all active:scale-[0.98]">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-600 text-lg">
+                        {f.full_name.substring(0,2).toUpperCase()}
+                      </div>
+                      {f.hasNotification && <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>}
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-slate-800">{f.full_name}</div>
+                    <div className={`text-xs font-bold ${f.balance === 0 ? 'text-slate-400' : f.balance > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                       {f.balance === 0 ? 'Settled' : f.balance > 0 ? `Owes you ₹${f.balance.toFixed(0)}` : `You owe ₹${Math.abs(f.balance).toFixed(0)}`}
+                    </div>
+                  </div>
+                </div>
+                <ChevronLeft className="w-5 h-5 text-slate-300 rotate-180 group-hover:text-indigo-500" />
+             </button>
+           ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- NEW "SURREAL" CHAT UI ---
+const ChatThread = ({ friend, onBack, user, transactions, onAdd, allUsers }) => {
+  const scrollRef = useRef(null);
+  
+  const history = useMemo(() => {
+    return transactions.filter(t => {
+      const iPaid = t.payer_id === user.id;
+      const friendPaid = t.payer_id === friend.user_id;
+
+      if (iPaid) return t.involved.includes(friend.user_id);
+      if (friendPaid) return t.involved.includes(user.id);
+      return false; 
+    }).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+  }, [transactions, friend, user]);
+
+  useEffect(() => { scrollRef.current?.scrollIntoView({behavior:'smooth'}); }, [history]);
+
+  const getName = (uid) => {
+      if (uid === user.id) return 'You';
+      const u = allUsers.find(au => au.user_id === uid);
+      return u ? u.full_name.split(' ')[0] : 'Unknown';
+  };
+
+  return (
+    <div className="bg-slate-50 h-screen flex flex-col pb-0 relative">
+      {/* Immersive Header */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 pt-12 pb-3 shadow-sm flex items-center gap-3 sticky top-0 z-20">
+        <button onClick={onBack} className="p-1 hover:bg-slate-100 rounded-full text-slate-600"><ChevronLeft className="w-6 h-6" /></button>
+        <div className="flex-1 flex items-center gap-3">
+          <div className="w-9 h-9 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold text-sm">
+             {friend.full_name.substring(0,2).toUpperCase()}
+          </div>
+          <div>
+            <h3 className="font-bold leading-none text-slate-800">{friend.full_name}</h3>
+            <span className={`text-[10px] font-medium ${friend.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {friend.balance === 0 ? 'All settled' : friend.balance > 0 ? `Owes you ₹${friend.balance.toFixed(0)}` : `You owe ₹${Math.abs(friend.balance).toFixed(0)}`}
+            </span>
+          </div>
+        </div>
+        <button onClick={onAdd} className="bg-indigo-600 text-white rounded-full p-2 w-8 h-8 flex items-center justify-center shadow-lg active:scale-95 transition-transform hover:bg-indigo-700">
+            <Plus className="w-5 h-5" />
+        </button>
+      </div>
+      
+      {/* Chat Area - Clean & Subtle Pattern */}
+      <div className="flex-1 p-4 space-y-6 overflow-y-auto pb-32 scrollbar-hide" 
+           style={{
+             backgroundImage: 'radial-gradient(circle at 1px 1px, #e2e8f0 1px, transparent 0)',
+             backgroundSize: '24px 24px'
+           }}>
+         
+         {history.length === 0 && (
+            <div className="flex justify-center mt-10">
+                <div className="bg-white/60 backdrop-blur-sm text-slate-500 px-6 py-3 rounded-2xl text-xs font-medium shadow-sm border border-white/50">
+                    No transactions yet. Tap <span className="font-bold text-indigo-600">+</span> to split a bill!
+                </div>
+            </div>
+         )}
+         
+         {history.map((t, i) => {
+           const isMe = t.payer_id === user.id;
+           const date = new Date(t.created_at);
+           
+           let relevantAmount = 0;
+           if (t.splits) {
+               relevantAmount = isMe ? (t.splits[friend.user_id] || 0) : (t.splits[user.id] || 0);
+           } else {
+               relevantAmount = t.amount / t.involved.length;
+           }
+
+           let breakdownText = "";
+           let splitsArr = [];
+           if (t.splits) {
+               Object.entries(t.splits).forEach(([uid, amt]) => {
+                   splitsArr.push(`${getName(uid)} (${amt})`);
+               });
+           } else {
+               const share = Math.round(t.amount / t.involved.length);
+               t.involved.forEach(uid => splitsArr.push(`${getName(uid)} (${share})`));
+           }
+           breakdownText = splitsArr.join(', ');
+
+           const showDate = i === 0 || new Date(history[i-1].created_at).getDate() !== date.getDate();
+           
+           return (
+             <React.Fragment key={t.id}>
+               {showDate && (
+                 <div className="flex justify-center mb-4 sticky top-2 z-10 opacity-80 pointer-events-none">
+                   <span className="bg-slate-200/80 backdrop-blur-sm text-slate-600 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm">
+                     {date.toLocaleDateString(undefined, { month:'short', day:'numeric' })}
+                   </span>
+                 </div>
+               )}
+               
+               <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                 <div className={`max-w-[85%] rounded-2xl shadow-sm relative p-1 transition-all hover:shadow-md ${isMe ? 'bg-indigo-600 rounded-tr-none text-white' : 'bg-white rounded-tl-none text-slate-800'}`}>
+                   
+                   <div className={`pl-3 pr-3 py-2 rounded-xl mb-1 ${isMe ? 'bg-indigo-500/30 border-l-2 border-indigo-300' : 'bg-slate-50 border-l-2 border-slate-300'}`}>
+                      <div className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
+                         {isMe ? 'You Paid' : `${friend.full_name.split(' ')[0]} Paid`}
+                      </div>
+                      <div className="text-sm font-bold leading-tight mb-1">
+                        {t.description}
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-black">₹{t.amount}</span>
+                        {relevantAmount > 0 && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isMe ? 'bg-indigo-700/50 text-indigo-100' : 'bg-slate-200 text-slate-600'}`}>
+                                {isMe ? 'Lent' : 'Borrowed'} ₹{Math.round(relevantAmount)}
+                            </span>
+                        )}
+                      </div>
+                   </div>
+
+                   <div className="px-2 pb-1 flex justify-between items-end gap-4">
+                       <div className={`text-[9px] leading-snug italic line-clamp-1 ${isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
+                         {breakdownText}
+                       </div>
+                       <div className={`text-[9px] font-medium whitespace-nowrap ${isMe ? 'text-indigo-300' : 'text-slate-300'}`}>
+                         {date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                       </div>
+                   </div>
+                   
+                 </div>
+               </div>
+             </React.Fragment>
+           )
+         })}
+         <div ref={scrollRef} />
+      </div>
+    </div>
+  );
+};
+
+const Profile = () => {
+  const { user, logout, updateProfile } = useApp();
+  const [upi, setUpi] = useState(user?.upi_id || '');
+  
+  return (
+    <div className="bg-slate-50 min-h-screen pb-28">
+        <div className="bg-white px-6 pt-12 pb-8 border-b border-slate-100">
+            <h2 className="text-2xl font-bold text-slate-900">Profile</h2>
+            <p className="text-slate-500 text-sm">Manage your account settings</p>
+        </div>
+        <div className="p-6">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center mb-6">
+                <div className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4 shadow-lg shadow-indigo-200">
+                    {user?.full_name?.substring(0,2).toUpperCase()}
+                </div>
+                <h3 className="font-bold text-lg text-slate-900">{user?.full_name}</h3>
+                <div className="text-slate-500 text-sm mb-4">{user?.email}</div>
+                <div className="bg-emerald-50 text-emerald-600 text-xs font-bold py-1 px-3 rounded-full inline-flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Verified Account
+                </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-6">
+                <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-indigo-600" /> Payment Methods
+                </h4>
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Default UPI ID</label>
+                        <input 
+                            value={upi} onChange={e => setUpi(e.target.value)} placeholder="username@okaxis"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-mono text-sm focus:outline-none focus:border-indigo-500"
+                        />
+                    </div>
+                    <button onClick={() => updateProfile({ upi_id: upi })} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm">Save Changes</button>
+                </div>
+            </div>
+
+            <button onClick={logout} className="w-full bg-rose-50 text-rose-600 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors">
+                <LogOut className="w-5 h-5" /> Sign Out
+            </button>
+        </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [currentPage, setCurrentPage] = useState('home');
+  const [initialFriendId, setInitialFriendId] = useState(null);
+
+  const renderPage = () => {
+    switch(currentPage) {
+      case 'home': return <HomePage />;
+      case 'add': return <AddPage setPage={setCurrentPage} initialFriendId={initialFriendId} />;
+      case 'stats': return <Stats />;
+      case 'activity': return <Activity setPage={setCurrentPage} setInitialFriendId={setInitialFriendId} />;
+      case 'profile': return <Profile />;
+      default: return <HomePage />;
+    }
+  };
+
+  return (
+    <AppProvider>
+      <MainContent currentPage={currentPage} setCurrentPage={setCurrentPage} renderPage={renderPage} />
+    </AppProvider>
+  );
+}
+
+const MainContent = ({ currentPage, setCurrentPage, renderPage }) => {
+  const { user, loading } = useApp();
+  if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-50"><Loader className="animate-spin text-indigo-600" /></div>;
+  if (!user) return <Login />;
+
+  return (
+    <div className="font-sans text-slate-900 bg-slate-50 min-h-screen">
+      <div className="max-w-md mx-auto bg-white min-h-screen shadow-2xl overflow-hidden relative">
+        {renderPage()}
+        <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+      </div>
+    </div>
+  );
+};
+
+
+const supabaseUrl = 'https://uqufwnkplntfkfyfdthe.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxdWZ3bmtwbG50ZmtmeWZkdGhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2NzA5MDksImV4cCI6MjA4MDI0NjkwOX0.2-QnvaOHlk40fN17x362CQTxcCzZEXbYDTau_BaO2Og';
