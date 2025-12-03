@@ -162,7 +162,7 @@ const AuthScreen = () => {
             {/* Action Button */}
             <button
               disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white py-3 rounded-xl font-medium shadow-lg shadow-indigo-900/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed group"
+              className="w-full gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white py-3 rounded-xl font-medium shadow-lg shadow-indigo-900/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed group"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

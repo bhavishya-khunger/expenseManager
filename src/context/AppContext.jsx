@@ -301,6 +301,38 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Delete a group / split transaction
+  const deleteTransaction = async (id) => {
+    try {
+      console.log('Deleting transaction with id:', id);
+
+      // 1️⃣ Delete from Supabase
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id);              // if your PK is "id"
+      // .eq('transaction_id', id) // use this instead if your column is named transaction_id
+
+      if (error) {
+        console.error('Error deleting transaction:', error);
+        alert('Could not delete transaction. Please try again.');
+        return;
+      }
+
+      // 2️⃣ Update local state
+      setTransactions(prev =>
+        prev.filter(t => t.id !== id && t.transaction_id !== id)
+      );
+
+      console.log('Transaction deleted successfully');
+    } catch (err) {
+      console.error('Unexpected error deleting transaction:', err);
+      alert('Something went wrong while deleting.');
+    }
+  };
+
+
+
   // --- FRIENDS ---
 
   const sendFriendRequest = async email => {
@@ -490,6 +522,7 @@ export const AppProvider = ({ children }) => {
         addTransaction,
         addPersonalExpense,
         deletePersonalExpense,
+        deleteTransaction,
         sendFriendRequest,
         respondToRequest,
         updateProfile,

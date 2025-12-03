@@ -1,13 +1,14 @@
-// src/pages/ActivityPage.jsx
 import React, { useMemo, useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronRight, Search, Users, CheckCircle2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import ChatThread from '../components/ChatThread';
 
 const ActivityPage = ({ setPage, setInitialFriendId }) => {
   const { friends, transactions, user, reminders, settlementRequests } = useApp();
   const [activeChat, setActiveChat] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
+  // --- Logic for calculating balances (Preserved exactly as is) ---
   const friendBalances = useMemo(() => {
     let bal = {};
 
@@ -79,6 +80,12 @@ const ActivityPage = ({ setPage, setInitialFriendId }) => {
     });
   }, [friends, transactions, user, reminders, settlementRequests]);
 
+  // Filter friends based on search
+  const filteredFriends = friendBalances.filter(f => 
+    f.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // --- Render Active Chat ---
   if (activeChat) {
     return (
       <ChatThread
@@ -92,62 +99,125 @@ const ActivityPage = ({ setPage, setInitialFriendId }) => {
     );
   }
 
+  // --- Render List UI ---
   return (
-    <div className="bg-slate-50 min-h-screen pb-28">
-      <div className="px-6 pt-12 pb-6">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Chat & Friends</h2>
-        <div className="space-y-3">
-          {friendBalances.length === 0 && (
-            <div className="text-center py-10 text-slate-400 text-sm">
-              No friends yet. Go to Profile to add one!
+    <div className="bg-gray-50 min-h-screen pb-32 font-sans">
+      
+      {/* Sticky Header with Backdrop Blur */}
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="px-6 pt-12 pb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Friends & Activity</h2>
+            <div className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold">
+              {friendBalances.length} Contacts
             </div>
-          )}
-          {friendBalances.map(f => (
+          </div>
+          
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Search friends..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-gray-100 border-none rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all placeholder:text-gray-400"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 mt-6 space-y-3">
+        {/* Empty State */}
+        {filteredFriends.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <Users className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-gray-900 font-semibold mb-1">No friends found</h3>
+            <p className="text-gray-500 text-sm max-w-xs mx-auto">
+              {searchTerm ? "Try searching for a different name." : "Start by adding friends from your profile to split bills with!"}
+            </p>
+          </div>
+        )}
+
+        {/* Friend Cards */}
+        {filteredFriends.map(f => {
+          const isOwed = f.balance > 0;
+          const isDebt = f.balance < 0;
+          const isSettled = f.balance === 0;
+
+          return (
             <button
               key={f.user_id}
               onClick={() => setActiveChat(f)}
-              className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:border-indigo-200 transition-all active:scale-[0.98]"
+              className="w-full bg-white p-4 rounded-2xl shadow-sm border border-transparent hover:border-indigo-100 hover:shadow-md transition-all duration-200 active:scale-[0.98] group"
             >
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-indigo-50 flex items-center justify-center font-bold text-indigo-600 text-lg">
-                    {f.avatar_url ? (
-                      <img
-                        src={f.avatar_url}
-                        alt="avatar"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      f.full_name?.substring(0, 2).toUpperCase()
+              <div className="flex items-center justify-between">
+                
+                {/* Left Side: Avatar & Name */}
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-indigo-50 to-blue-50 border border-gray-100 flex items-center justify-center font-bold text-indigo-600 text-lg shadow-inner">
+                      {f.avatar_url ? (
+                        <img
+                          src={f.avatar_url}
+                          alt="avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        f.full_name?.substring(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    {/* Notification Dot with Pulse */}
+                    {f.hasNotification && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-500 border-2 border-white"></span>
+                      </span>
                     )}
                   </div>
-                  {f.hasNotification && (
-                    <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
-                  )}
-                </div>
-                <div className="text-left">
-                  <div className="font-bold text-slate-800">{f.full_name}</div>
-                  <div
-                    className={`text-xs font-bold ${
-                      f.balance === 0
-                        ? 'text-slate-400'
-                        : f.balance > 0
-                        ? 'text-emerald-600'
-                        : 'text-rose-600'
-                    }`}
-                  >
-                    {f.balance === 0
-                      ? 'Settled'
-                      : f.balance > 0
-                      ? `Owes you ₹${f.balance.toFixed(0)}`
-                      : `You owe ₹${Math.abs(f.balance).toFixed(0)}`}
+
+                  <div className="text-left">
+                    <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                      {f.full_name}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {isSettled ? (
+                        <span className="text-xs font-medium text-gray-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> All settled up
+                        </span>
+                      ) : isOwed ? (
+                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <ArrowUpRight className="w-3 h-3" /> Owes you
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <ArrowDownLeft className="w-3 h-3" /> You owe
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Right Side: Balance Amount & Arrow */}
+                <div className="flex items-center gap-3">
+                  {!isSettled && (
+                    <div className="text-right">
+                      <div className={`text-sm font-bold tracking-tight ${
+                        isOwed ? 'text-emerald-600' : 'text-rose-600'
+                      }`}>
+                        ₹{Math.abs(f.balance).toFixed(0)}
+                      </div>
+                    </div>
+                  )}
+                  <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-400 transition-colors" />
+                </div>
+
               </div>
-              <ChevronLeft className="w-5 h-5 text-slate-300 rotate-180 group-hover:text-indigo-500" />
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
